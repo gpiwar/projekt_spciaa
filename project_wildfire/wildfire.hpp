@@ -37,6 +37,12 @@ std::vector<std::vector<int>> load_fuel_matrix(const std::string& file_path) {
     return fuel_matrix;
 }
 
+inline double custom_wind(double x, double t) {
+    // Zmienność wiatru w kierunku x zależna od czasu i przestrzeni
+    return 10 * sin(t / 10.0 * 2 * M_PI) * sin(x / 10.0 * 2 * M_PI);
+}
+
+
 inline double falloff(double r, double R, double t) {
     if (t < r)
         return 1.0;
@@ -106,8 +112,8 @@ public:
     , output{x.B, y.B, 300} { }
 
     double init_state(double x, double y) {
-        double r = 10;
-        double R = 30;
+        double r = 5;
+        double R = 5;
         return T0 + Tcomb * bump(r, R, x, y);
     };
 
@@ -159,7 +165,11 @@ private:
             for (auto q : quad_points()) {
                 double w = weight(q);
                 auto x = point(e, q);
-
+   
+   		// wind
+                double bx = custom_wind(x[0], t);
+                double by = custom_wind(x[1], t);
+               
                 value_type u = eval_fun(u_prev, e, q);
                 value_type fuel = eval_fun(fuel_prev, e, q);
 
