@@ -16,6 +16,23 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <filesystem>
+
+#define FUEL_MATRIX_CSV "fuel_matrix.csv"
+
+std::string find_file(const std::string &aFileName, const std::string &aLookupStartDir = "/home")
+{
+    std::string aFilePath {""};
+    for(const auto& entry : std::filesystem::recursive_directory_iterator(aLookupStartDir))
+    {
+        if(entry.is_regular_file() && entry.path().filename() == aFileName)
+        {
+            aFilePath = entry.path().string();
+            break;
+        }
+    }
+    return aFilePath;
+}
 
 std::vector<std::vector<int>> load_fuel_matrix(const std::string& file_path) {
     std::ifstream file(file_path);
@@ -122,7 +139,8 @@ private:
         prepare_matrices();
         
         // Load the binary matrix representing fuel areas
-        std::vector<std::vector<int>> fuel_matrix = load_fuel_matrix("/home/ubuntu/Downloads/fuel_matrix1.csv");
+        std::string fuel_matrix_path = find_file(FUEL_MATRIX_CSV);
+        std::vector<std::vector<int>> fuel_matrix = load_fuel_matrix(fuel_matrix_path);
 
         auto init = [this](double x, double y) { return init_state(x, y); };
         projection(u, init);

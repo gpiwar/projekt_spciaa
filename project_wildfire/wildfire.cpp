@@ -5,7 +5,7 @@
 
 int main() {
     ads::dim_config dim{2, 200, 0.0, 100.0};
-    ads::timesteps_config steps{10000, 1e-3};
+    ads::timesteps_config steps{300, 1e-3};
     int ders = 1;
 
     ads::config_2d c{dim, dim, steps, ders};
