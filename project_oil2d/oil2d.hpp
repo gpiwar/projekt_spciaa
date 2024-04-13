@@ -7,6 +7,49 @@
 #include "ads/output_manager.hpp"
 #include "ads/simulation.hpp"
 
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <filesystem>
+
+#define MATRIX_CSV "matrix.csv"
+
+std::string find_file(const std::string &aFileName, const std::string &aLookupStartDir = "/home")
+{
+    std::string aFilePath {""};
+    for(const auto& entry : std::filesystem::recursive_directory_iterator(aLookupStartDir))
+    {
+        if(entry.is_regular_file() && entry.path().filename() == aFileName)
+        {
+            aFilePath = entry.path().string();
+            break;
+        }
+    }
+    return aFilePath;
+}
+std::vector<std::vector<int>> permeability_matrix;
+
+std::vector<std::vector<int>> load_permeability_matrix(const std::string& file_path) {
+    std::ifstream file(file_path);
+    //std::vector<std::vector<int>> permeability_matrix;
+    std::string line;
+
+    while (getline(file, line)) {
+        std::istringstream iss(line);
+        std::vector<int> row;
+        std::string val;
+        
+        while (getline(iss, val, ',')) {
+            row.push_back(std::stoi(val));
+        }
+        
+        permeability_matrix.push_back(row);
+    }
+
+    return permeability_matrix;
+}
+
 namespace ads {
 
 struct vec2d {
@@ -96,7 +139,7 @@ private:
 
     galois_executor executor{4};
 
-    pumps process = pumps{{{0.25, 0.25}, {0.75, 0.75}}, {{0.25, 0.75}, {0.75, 0.25}}};
+    pumps process = pumps{{{0.25, 0.25}, {0.75, 0.75},{0.1,0.5},{0.5,0.7}}, {{0.25, 0.25}, {0.75, 0.75},{0.1,0.5},{0.5,0.7}}};
     lin::tensor<double, 4> kq;
     output_manager<2> output;
 
@@ -116,23 +159,34 @@ public:
 
 private:
     void before() override {
+        // Load the binary matrix representing of geological layers
+       	std::string permeability_matrix_path = find_file(MATRIX_CSV);
+        permeability_matrix = load_permeability_matrix(permeability_matrix_path);
+       
+        
         fill_permeability_map();
         prepare_matrices();
-
+        
         auto init = [this](double x, double y) { return init_state(x, y); };
         projection(u, init);
         solve(u);
         output.to_file(u, "out_%d.data", 0);
     }
 
+    double my_permeability(index_type e, index_type q) const{
+	    auto x = point(e,q);
+	    return permeability_matrix[int(x[0])*20][int(x[1])*20];
+    }
+    
     void fill_permeability_map() {
         for (auto e : elements()) {
             for (auto q : quad_points()) {
-                auto x = point(e, q);
-                kq(e[0], e[1], q[0], q[1]) = 1e2;  // permeability function
+                // auto x = point(e, q);
+                kq(e[0], e[1], q[0], q[1]) = my_permeability(e,q);  // permeability function
             }
         }
     }
+    
 
     void before_step(int /*iter*/, double /*t*/) override {
         using std::swap;
