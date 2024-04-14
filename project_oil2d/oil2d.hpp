@@ -7,6 +7,53 @@
 #include "ads/output_manager.hpp"
 #include "ads/simulation.hpp"
 
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <filesystem>
+
+#define MATRIX_CSV "matrix.csv"
+
+std::string find_file(const std::string &aFileName, const std::string &aLookupStartDir = "/home")
+{
+    std::string aFilePath {""};
+    for(const auto& entry : std::filesystem::recursive_directory_iterator(aLookupStartDir))
+    {
+        if(entry.is_regular_file() && entry.path().filename() == aFileName)
+        {
+            aFilePath = entry.path().string();
+            break;
+        }
+    }
+    return aFilePath;
+}
+
+std::vector<std::vector<double>> permeability_matrix;
+
+std::vector<std::vector<double>> load_permeability_matrix(const std::string& file_path) {
+    std::ifstream file(file_path);
+    std::vector<std::vector<double>> permeability_matrix;
+    std::string line;
+
+    while (getline(file, line)) {
+        std::istringstream iss(line);
+        std::vector<double> row;
+        std::string val;
+        
+        while (getline(iss, val, ',')) {
+        	double scaled_value = std::stod(val) * 100;
+                row.push_back(scaled_value);  // Convert string to double
+        }
+        
+        permeability_matrix.push_back(row);
+    }
+
+    return permeability_matrix;
+}
+
+
+
 namespace ads {
 
 struct vec2d {
@@ -59,9 +106,9 @@ struct pumps {
     std::vector<ads::vec2d> sources;
     std::vector<ads::vec2d> sinks;
 
-    static constexpr double radius = 0.15;
-    static constexpr double pumping_strength = 1;
-    static constexpr double draining_strength = 1e5;
+    static constexpr double radius = 0.05;
+    static constexpr double pumping_strength = 2;
+    static constexpr double draining_strength = 1;
 
     double pumping(double x, double y) const {
         ads::vec2d v{x, y};
@@ -96,7 +143,10 @@ private:
 
     galois_executor executor{4};
 
-    pumps process = pumps{{{0.25, 0.25}, {0.75, 0.75}}, {{0.25, 0.75}, {0.75, 0.25}}};
+    pumps process = pumps{
+    	{{0.2, 0.8}, {0.2, 0.65}, {0.25, 0.45}, {0.4, 0.45}, {0.45, 0.55}}, 
+    	{{0.3, 0.65}, {0.3, 0.3}, {0.75, 0.8},}
+    };
     lin::tensor<double, 4> kq;
     output_manager<2> output;
 
@@ -116,23 +166,44 @@ public:
 
 private:
     void before() override {
+        // Load the binary matrix representing of geological layers
+       	std::string permeability_matrix_path = find_file(MATRIX_CSV);
+        permeability_matrix = load_permeability_matrix(permeability_matrix_path);
+       
+        
         fill_permeability_map();
         prepare_matrices();
-
+        
         auto init = [this](double x, double y) { return init_state(x, y); };
         projection(u, init);
         solve(u);
         output.to_file(u, "out_%d.data", 0);
     }
 
+    
     void fill_permeability_map() {
         for (auto e : elements()) {
             for (auto q : quad_points()) {
-                auto x = point(e, q);
-                kq(e[0], e[1], q[0], q[1]) = 1e2;  // permeability function
+            	auto[x, y] = point(e, q); 
+
+            	// X, y to index into the matrix
+            	int matrix_x = static_cast<int>(x * 19); 
+            	int matrix_y = static_cast<int>(y * 19);  
+
+            	// Boundary check for safety
+            	matrix_x = std::max(0, std::min(matrix_x, 19));
+            	matrix_y = std::max(0, std::min(matrix_y, 19));
+
+            	kq(e[0], e[1], q[0], q[1]) = permeability_matrix[matrix_y][matrix_x];
+            	
+            	// Drukowanie dla sprawdzenia czy dobrze wczytuje wartosci
+            	//std::cout << "Permeability at (" << x << ", " << y << ") -> Matrix(" << matrix_x << ", " << matrix_y 
+                      //<< ") = " << permeability_matrix[matrix_y][matrix_x] << std::endl;
+            	
             }
         }
     }
+    
 
     void before_step(int /*iter*/, double /*t*/) override {
         using std::swap;
@@ -195,7 +266,10 @@ private:
         }
     }
 
-    double permeability(index_type e, index_type q) const { return kq(e[0], e[1], q[0], q[1]); }
+    double permeability(index_type e, index_type q) const { 
+    	auto x = point(e, q);
+    	return permeability_matrix[int(x[0]*20)][int(x[1]*20)]; 
+    }
 
     double forcing(point_type x, double /*t*/, double u) const {
         return process.pumping(x[0], x[1]) - process.draining(x[0], x[1], u);

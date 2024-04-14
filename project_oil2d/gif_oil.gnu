@@ -1,6 +1,7 @@
 set grid 
 set terminal gif animate delay 0.1
 set output 'oil_out.gif'
+set cbrange[0:0.0012]
 
 n=0
 while (n<10000){
