@@ -154,22 +154,80 @@ Projekt –Symulacja wydobywania ropy}
 
 % ----------Raport------------
 \section{Wprowadzenie}
- 
+
+ Wydobywanie ropy naftowej to kluczowy proces dla światowej gospodarki, stanowiący podstawę dla wielu gałęzi przemysłu. Jest to nie tylko jedno z głównych źródeł energii, ale także surowiec niezbędny do produkcji wielu produktów chemicznych i petrochemicznych. Z uwagi na strategiczne znaczenie ropy naftowej, optymalizacja procesów wydobywczych oraz zrozumienie mechanizmów zachodzących podczas eksploatacji złoża są niezwykle istotne.
+
+Symulacje komputerowe stanowią narzędzie, które umożliwia lepsze zrozumienie i optymalizację procesów wydobywczych. Poprzez modelowanie różnych scenariuszy oraz warunków geologicznych, symulacje mogą wspomóc podejmowanie decyzji w zakresie projektowania i eksploatacji złóż ropy naftowej.
 
 \section{Cel projektu}
 
+Celem projektu było stworzenie symulacji wydobywania ropy naftowej poprzez
+szczelinowane hydrauliczne. W tym celu zmodyfikowaliśmy załączone pliki oil2d.hpp i oil2d.cpp, które poźniej posłużyły do uruchomienia skryptów symulacji
+w solverze IGA-ADS.
         
 \section{Opis rozwiązania}
+
+W tej cześci omówiono kroki podjęte w celu modyfikacji kodu symulacyjnego. Należały do nich:  
+\begin{enumerate}
+    \item zaprojektowanie mapy warstw geologicznych 
+    \item zaprojektowanie i umieszczenie na mapie pomp ssących i pompujących 
+\end{enumerate}
 
 
 \subsection{Modyfikacja mapy geologicznej.}
 
+Wczytano zadaną mapę warstw geologicznych i przekonwertowano ją w taki sposób, aby zawierała wartości z przedziału [0,1]. Wartości mapy zapisano do pliku csv, który następnie posłużył do inicjalizacji macierzy permeability\_matrix.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{init_matrix.png}
+    \caption{Mapa warstw geologicznych z wartościami w przedziale [0,1]}
+    \label{fig:example}
+\end{figure}
+
+Zmodyfikowano funkcję permeability() tak, by korzystała z macierzy permeability\_matrix.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{permeability.png}
+    \caption{Modyfikacja funkcji permeability()}
+    \label{fig:example}
+\end{figure}
+
+Zmodyfikowano funkcję fill\_permeability\_map() tak, by korzystała z macierzy permeability\_matrix.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{fill_permeability_map.png}
+    \caption{Modyfikacja funkcji fill\_permeability\_map()}
+    \label{fig:example}
+\end{figure}
 
 \subsection{Modyfikacja ustawienia pomp.}
  
-
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{pumps_params.png}
+    \caption{Modyfikacja parametrów pomp.}
+    \label{fig:example}
+\end{figure}
 \section{Wyniki}
-obrazki jak wyszlo
+
+Rysunki przedstawiają konkretne kroki czasowe symulacji.
+
+\begin{figure}[H]
+    \centering
+    \subfloat{{\includegraphics[width=6cm]{0.png} }}%
+    \qquad
+    \subfloat{{\includegraphics[width=6cm]{500.png} }}%
+    \qquad
+    \subfloat{{\includegraphics[width=6cm]{1900.png} }}%
+    \qquad
+    \subfloat{{\includegraphics[width=6cm]{3300.png} }}%
+    \qquad
+    \subfloat{{\includegraphics[width=6cm]{6200.png} }}%
+    \qquad
+    \subfloat{{\includegraphics[width=6cm]{9900.png} }}%
+    \caption{Kolejne klatki z otrzymanej symulacji.}%
+\end{figure}
 
 \section{Podsumowanie}
 udalo sie? 
