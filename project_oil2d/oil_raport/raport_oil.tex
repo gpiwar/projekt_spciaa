@@ -1,4 +1,4 @@
-\documentclass[a4paper,12pt]{article}
+\documentclass[onecolumn,12pt]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -37,8 +37,6 @@
 \usepackage[ruled,linesnumbered,lined]{algorithm2e}
 \usepackage[bookmarks=false]{hyperref}
 \usepackage{mathtools}
-\usepackage[demo]{graphicx}
-\usepackage{subfig}
 \DeclarePairedDelimiter\ceil{\lceil}{\rceil}
 \DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
 
@@ -145,7 +143,7 @@ backend=biber]{biblatex}
 \begin{document}
 % ----------Strona tytułowa------------
 \title{Symulacje procesów ciągłych i algorytmy adaptacyjne\\
-Projekt –Symulacja pożaru}
+Projekt –Symulacja wydobywania ropy}
 \author{Magdalena Królikowska, Gabriela Piwar, Sławomir Tenerowicz}
 \date{\today}
 \maketitle
@@ -156,10 +154,10 @@ Projekt –Symulacja pożaru}
 
 % ----------Raport------------
 \section{Wprowadzenie}
-Pożary od dawna stanowią znaczące zagrożenie dla ludzi, mienia i środowiska naturalnego na całym świecie. Ich złożoność oraz wpływ na społeczności wymaga ciągłego badania i rozwoju metod zarządzania ryzykiem oraz przeciwdziałania. Symulacje pożarów stają się coraz bardziej istotnym narzędziem w analizie oraz prognozowaniu zachowania się ognia w różnych scenariuszach. Oferują one możliwość zrozumienia dynamiki pożarów, oceny skutków dla różnych obszarów oraz opracowania strategii zarządzania kryzysowego. 
+ 
 
 \section{Cel projektu}
-Celem zadania było stworzenie symulacji pożarów, odzwierciedlającej rzeczywiste warunki występujące podczas dużego pożaru, który miał miejsce gdzieś na świecie. W tym celu zmodyfikowaliśmy załączone pliki wildfire.hpp i wildfire.cpp, które poźniej posłużyły do uruchomienia skryptów symulacji w solverze IGA-ADS.  
+Celem zadania było stworzenie symulacji pożarów, odzwierciedlającej rzeczywiste warunki występujące podczas dużego pożaru, który miał miejsce gdzieś na świecie. W tym celu zmodyfikowaliśmy załączone pliki oil2d.hpp i oil2d.cpp, które poźniej posłużyły do uruchomienia skryptów symulacji w IGA-ADS.  
 
 \section{Opis pożaru}
 Pożar, który badaliśmy w ramach naszego projektu, wybuchł \textbf{27 kwietnia 2013 roku w Parku Narodowym Grasslands w Kanadzie}. Ogień pojawił się w pobliżu zachodniej granicy parku i szybko rozprzestrzenił się na wschód przez park, spalając około 1/3 zachodniego bloku. 
@@ -172,23 +170,10 @@ Pożar, który badaliśmy w ramach naszego projektu, wybuchł \textbf{27 kwietni
 \end{figure}
         
 \section{Opis rozwiązania}
-W tej cześci omówiono kroki podjęte w celu dostosowania istniejącego kodu symulacyjnego, aby uwzględnić specyficzne cechy wybranego pożaru z 2013 roku. Należały do nich: początkowy stan pożaru, warunki wiatrowe i rozmieszczenie materiałów palnych.
-
-\subsection{Początkowa konfiguracja pożaru.}
-Funkcja init state została zmodyfikowana w taki sposób, by początkowa konfiguracja pożaru odpowiadała rzeczywistym danych dotyczących lokalizacji i intensywności pożaru na jego początkowym etapie. Zmieniono punkt startowy na współrzędne x = 2, y = 58 oraz zredukowano szerokość promienia rozprzestrzeniania ognia do 2. 
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{init_state.png}
-    \includegraphics[width=0.9\textwidth]{init_state1.png}
-    \caption{Fragment zmienionego kodu dla funkji init_state.}
-    \label{fig:example}
-\end{figure}
-\newpage
+Tutaj screeny kodu, co zmieniliśmy i jak
 
 \subsection{Modyfikacja wektora wiatru}
 Aby odzwierciedlić wpływ zmienności wiatru na rozprzestrzenianie ognia zaimplementowano funkcję custom-wind(x, t). W tym celu w pliku wildfire.hpp  zmieniono funkcję compute-rhs tak, by korzystała z niej do obliczenia wartości bx(x[0], t) i by(x[1], t). Wzór jaki zastosowaliśmy to:
-
 \[
 y = 10 \cdot\sin\left(\frac{t}{24} \cdot 2\pi\right) \cdot \sin\left(\frac{x}{100} \cdot 2\pi\right)
 \]
@@ -199,19 +184,34 @@ y = 10 \cdot\sin\left(\frac{t}{24} \cdot 2\pi\right) \cdot \sin\left(\frac{x}{10
     \caption{Wykres wykorzystanej funkcji.}
     \label{fig:example}
 \end{figure}
-\newpage
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{custom_wind.png}
+    \caption{Fragment kodu implementujący funckję wiatru.}
+    \label{fig:example}
+\end{figure}
+
+
+\subsection{Początkowa konfiguracja pożaru.}
+zmiana punktu rozpoczecia pożaru i promienia, 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{init_state.png}
+    \includegraphics[width=0.9\textwidth]{init_state1.png}
+    \caption{Fragment zmienionego kodu dla funkji init_state.}
+    \label{fig:example}
+\end{figure}
 
 \subsection{Modyfikacja mapy paliwa.}
 Mapę mateiałów palnych opracowaliśmy na podstawie zdjęcia satelitarnego. Wydzielając spalony obszar stworzyliśmy maskę binarną, którą przekształciliśmy na macierz 100 x 100. 
 
 \begin{figure}[H]
     \centering
-    \subfloat[\centering Mapa paliwa]{{\includegraphics[width=5cm]{
-    project_wildfire/IMG_0896.png} }}%
-    \qquad
-    \subfloat[\centering Obrazek referecyjny]{{\includegraphics[width=7cm]{firemap.jpg} }}%
-    \caption{Utworzona mask binarna wraz z orginałem.}%
-    \label{fig:example}%
+    \includegraphics[width=0.5\textwidth]{project_wildfire/IMG_0896.png}
+    \caption{Wykorzystana mapa paliwa.}
+    \label{fig:example}
 \end{figure}
 
 W pliku wildfire.hpp dodaliśmy funckję do odczytywania pliku w formacie CSV i przekształcania danych na macierz. Następnie zmodyfikowaliśmy początkowy stan mapy paliwa aby odzwierciedlał dane z pliku.
@@ -224,27 +224,8 @@ W pliku wildfire.hpp dodaliśmy funckję do odczytywania pliku w formacie CSV i 
     \label{fig:example}
 \end{figure}
 
-\newpage
 \section{Wyniki}
-Symulacja 1000 klatek, naniesiona na obraz satelitarny miejsca pozaru. Rysunki przedstawiaja kolejne kroki czasowe.
-
-\begin{figure}[H]
-    \centering
-    \subfloat{{\includegraphics[width=6cm]{fire_spread_1.png} }}%
-    \qquad
-    \subfloat{{\includegraphics[width=6cm]{fire_spread_2.png} }}%
-    \qquad
-    \subfloat{{\includegraphics[width=6cm]{fire_spread_3.png} }}%
-    \qquad
-    \subfloat{{\includegraphics[width=6cm]{fire_spread_4.png} }}%
-    \qquad
-    \subfloat{{\includegraphics[width=6cm]{fire_spread_5.png} }}%
-    \qquad
-    \subfloat{{\includegraphics[width=6cm]{fire_spread_6.png} }}%
-    \caption{Kolejne klatki z otrzymanej symulacji.}%
-\end{figure}
-
-
+obrazki jak wyszlo
 
 \section{Podsumowanie}
 udalo sie? 
