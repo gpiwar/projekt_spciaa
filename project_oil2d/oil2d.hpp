@@ -59,6 +59,13 @@ namespace ads {
 struct vec2d {
     double x;
     double y;
+
+    vec2d operator/(double aDivider)
+    {
+        this->x /= aDivider;
+        this->y /= aDivider;
+        return *this;
+    }
 };
 
 inline vec2d operator-(const vec2d& a, const vec2d& b) {
@@ -102,9 +109,47 @@ inline double bump(double r, double R, double x, double y) {
     return falloff(r / 2, R / 2, t);
 }
 
+struct pumps_coord { /* real {x,y} index in map matrix */
+    std::vector<ads::vec2d> sources;
+    std::vector<ads::vec2d> sinks;
+    double scale = 20.0;
+};
+
 struct pumps {
     std::vector<ads::vec2d> sources;
     std::vector<ads::vec2d> sinks;
+
+    pumps(const pumps_coord& real_coords)
+    {
+        sources.resize(real_coords.sources.size());
+        sinks.resize(real_coords.sinks.size());
+        std::transform(real_coords.sources.begin(), real_coords.sources.end(), sources.begin(),
+            [&](ads::vec2d vec){ return vec = vec / real_coords.scale; });
+
+        std::transform(real_coords.sinks.begin(), real_coords.sinks.end(), sinks.begin(),
+            [&](ads::vec2d vec){ return vec = vec / real_coords.scale; });
+
+        // print_coords();
+    }
+
+    pumps(const std::vector<ads::vec2d>& aSources, const std::vector<ads::vec2d>& aSinks)
+    {
+        this->sources = aSources;
+        this->sinks = aSinks;
+    }
+
+    // void print_coords()
+    // {
+    //     for(const auto& sink : sinks)
+    //     {
+    //         std::cout << "sink: " << sink.x << " " << sink.y << "\n";
+    //     }
+
+    //     for(const auto& source : sources)
+    //     {
+    //         std::cout << "source: " << source.x << " " << source.y << "\n";
+    //     }
+    // }
 
     static constexpr double radius = 0.05;
     static constexpr double pumping_strength = 2;
@@ -143,10 +188,17 @@ private:
 
     galois_executor executor{4};
 
-    pumps process = pumps{
-    	{{0.2, 0.8}, {0.2, 0.65}, {0.25, 0.45}, {0.4, 0.45}, {0.45, 0.55}}, 
-    	{{0.3, 0.65}, {0.3, 0.3}, {0.75, 0.8},}
-    };
+    // pumps process = pumps{
+    // 	{{0.2, 0.8}, {0.2, 0.65}, {0.25, 0.45}, {0.4, 0.45}, {0.45, 0.55}}, 
+    // 	{{0.3, 0.65}, {0.3, 0.3}, {0.75, 0.8},}
+    // };
+
+    pumps_coord real_coords{
+            {{3,3}, {3,11}, {4,8}, {4,15}, {6,3}, {7,14}, {8,7}, {10,4}, {12,11}, {13,8}, {13,5}, {14,5}, {16,8}, {16,14}},
+            {{2,2}, {2,10}, {3,4}, {3,7}, {3,12}, {4,9}, {5,15}, {8,14}, {9,3}, {11,5}, {12,7}, {13,4}, {14,6}, {14,9}, {15,15}, {16,7}, {17,14}}};
+
+    pumps process = pumps{real_coords};
+
     lin::tensor<double, 4> kq;
     output_manager<2> output;
 
