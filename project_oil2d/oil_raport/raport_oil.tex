@@ -180,7 +180,7 @@ Wczytano zadaną mapę warstw geologicznych i przekonwertowano ją w taki sposó
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{init_matrix.png}
+    \includegraphics[width=0.5\textwidth]{init_matrix.png}
     \caption{Mapa warstw geologicznych z wartościami w przedziale [0,1]}
     \label{fig:example}
 \end{figure}
@@ -202,11 +202,19 @@ Zmodyfikowano funkcję fill\_permeability\_map() tak, by korzystała z macierzy 
 \end{figure}
 
 \subsection{Modyfikacja ustawienia pomp.}
- 
+ Ustawiono własne parametry kątu, siły pompowania i siły spuszczania.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{pumps_params.png}
     \caption{Modyfikacja parametrów pomp.}
+    \label{fig:example}
+\end{figure}
+
+Rozmieszczono również pompy ssące i tłoczące. Ssące zostały umieszczone w miejscach, gdzie jest duża wartość permeability, natomiast tłoczące bezpośrednio wokół nich.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{pump-sink-distribution.png}
+    \caption{Rozmieszczenie pomp ssących i tłoczących.}
     \label{fig:example}
 \end{figure}
 \section{Wyniki}
