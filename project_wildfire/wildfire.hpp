@@ -20,6 +20,7 @@
 
 #define FUEL_MATRIX_CSV "fuel_matrix.csv"
 
+
 std::string find_file(const std::string &aFileName, const std::string &aLookupStartDir = "/home")
 {
     std::string aFilePath {""};
@@ -82,9 +83,8 @@ class fire : public simulation_2d {
 private:
     using Base = simulation_2d;
     vector_type u, u_prev;
-
     vector_type fuel, fuel_prev;
-
+    vector_type wind, wind_prev;
     // double C1 = 1;
     // double C2 = 1;
     // double C3 = 1;
@@ -126,6 +126,8 @@ public:
     , u_prev{shape()}
     , fuel{shape()}
     , fuel_prev{shape()}
+    , wind{shape()}
+    , wind_prev{shape()}
     , output{x.B, y.B, 300} { }
 
     double init_state(double x, double y) {
@@ -155,78 +157,102 @@ private:
         projection(fuel, fuel_init);
         solve(fuel);
         output.to_file(fuel, "fuel_0.data");
-    }
+        
+        auto wind_init = [](double x, double y) { return   			  
+        custom_wind(x, 0.0); };
+	projection(wind, wind_init);
+	solve(wind);
+	output.to_file(wind, "wind_0.data");
+    	};
 
     void before_step(int /*iter*/, double /*t*/) override {
         using std::swap;
         swap(u, u_prev);
         swap(fuel, fuel_prev);
+        swap(wind, wind_prev);
     }
 
     void step(int /*iter*/, double t) override {
         compute_rhs(t);
         solve(u);
         solve(fuel);
+        solve(wind);
     }
 
-    void compute_rhs(double t) {
-        auto& rhs = u;
-        auto& rhs_fuel = fuel;
+void compute_rhs(double t) {
+    auto& rhs = u;
+    auto& rhs_fuel = fuel;
+    auto& rhs_wind = wind;
 
-        zero(rhs);
-        zero(rhs_fuel);
-        executor.for_each(elements(), [&](index_type e) {
-            auto U = element_rhs();
-            auto F = element_rhs();
+    zero(rhs);
+    zero(rhs_fuel);
+    zero(rhs_wind);
+    executor.for_each(elements(), [&](index_type e) {
+        auto U = element_rhs();
+        auto F = element_rhs();
+        auto W = element_rhs();
 
-            double J = jacobian(e);
-            for (auto q : quad_points()) {
-                double w = weight(q);
-                auto x = point(e, q);
-   
-   		// wind
-                double bx = custom_wind(x[0], t);
-                double by = custom_wind(x[1], t);
+        double J = jacobian(e);
+        for (auto q : quad_points()) {
+            double w = weight(q);
+            auto x = point(e, q);
+
+            // wind
+            double bx = custom_wind(x[0], t);
+            double by = custom_wind(x[1], t);
+            
+            //wind_prev(e, q) = std::sqrt(bx * bx + by * by); 
+            
+            value_type u = eval_fun(u_prev, e, q);
+            value_type fuel = eval_fun(fuel_prev, e, q);
+	    value_type wind = eval_fun(wind_prev, e, q);
+
+            for (auto a : dofs_on_element(e)) {
+                auto aa = dof_global_to_local(e, a);
+                value_type v = eval_basis(e, q, a);
+                double inv = 1.0 / (rho * cp);
+
+                double delta = u.val > Tig && fuel.val > 0.2 ? 1.0 : 0.0;
+                double hc = -70; // enthalpy
+                double r = delta * Ar * u.val * std::exp(-Ta / u.val) ;
+                double Rc = - 1e4 * rho * ch * hc * M / M1 * r;
+                double wind = (bx * u.dx + by * u.dy);
+                // double wind = (bx + by); for testing
+                double Qw = - rho * cw * wind;
+                
+                double qc = - kappa * grad_dot(u, v);
+                double qd = 0.0; // omitted
+                double qr = -4 * sigma * eps * delta_x * std::pow(u.val, 3) * grad_dot(u, v);
+                double Qconv = xi * (T0 - u.val);
+                double Qrz = sigma * eps / delta_z * (std::pow(T0, 4) - std::pow(u.val, 4));
+
+                double val = (Rc + Qw + Qconv + Qrz) * v.val + qc + qd + qr;
+                U(aa[0], aa[1]) += (u.val * v.val + steps.dt * inv * val) * w * J;
+
+                double fval = - delta * 3e2 * r * fuel.val * v.val;
+                F(aa[0], aa[1]) += (fuel.val * v.val + steps.dt * fval) * w * J;
+                
+                double wval = wind;
+                W(aa[0], aa[1]) += (wind * v.val + steps.dt * wval) * w * J;
+
                
-                value_type u = eval_fun(u_prev, e, q);
-                value_type fuel = eval_fun(fuel_prev, e, q);
-
-                for (auto a : dofs_on_element(e)) {
-                    auto aa = dof_global_to_local(e, a);
-                    value_type v = eval_basis(e, q, a);
-                    double inv = 1.0 / (rho * cp);
-
-                    double delta = u.val > Tig && fuel.val > 0.2 ? 1.0 : 0.0;
-                    double hc = -70; // enthalpy
-                    double r = delta * Ar * u.val * std::exp(-Ta / u.val) ;
-                    double Rc = - 1e4 * rho * ch * hc * M / M1 * r;
-                    double Qw = - rho * cw * (bx * u.dx + by * u.dy);
-                    double qc = - kappa * grad_dot(u, v);
-                    double qd = 0.0; // omitted
-                    double qr = -4 * sigma * eps * delta_x * std::pow(u.val, 3) * grad_dot(u, v);
-                    double Qconv = xi * (T0 - u.val);
-                    double Qrz = sigma * eps / delta_z * (std::pow(T0, 4) - std::pow(u.val, 4));
-
-                    double val = (Rc + Qw + Qconv + Qrz) * v.val + qc + qd + qr;
-                    U(aa[0], aa[1]) += (u.val * v.val + steps.dt * inv * val) * w * J;
-
-                    double fval = - delta * 3e2 * r * fuel.val * v.val;
-                    F(aa[0], aa[1]) += (fuel.val * v.val + steps.dt * fval) * w * J;
-                }
             }
-            executor.synchronized([&] { update_global_rhs(rhs, U, e); });
-            executor.synchronized([&] { update_global_rhs(rhs_fuel, F, e); });
-        });
-    }
-
-    void after_step(int iter, double /*t*/) override {
-        auto i = iter  +1;
-        if (i % 10 == 0) {
-            std::cout << "Step " << i << std::endl;
-            output.to_file(u, "out_%d.data", i);
-            output.to_file(fuel, "fuel_%d.data", i);
         }
+        executor.synchronized([&] { update_global_rhs(rhs, U, e); });
+        executor.synchronized([&] { update_global_rhs(rhs_fuel, F, e); });
+        executor.synchronized([&] { update_global_rhs(rhs_wind, W, e); });
+    });
+}
+
+void after_step(int iter, double /*t*/) override {
+    auto i = iter  +1;
+    if (i % 10 == 0) {
+        std::cout << "Step " << i << std::endl;
+        output.to_file(u, "out_%d.data", i);
+        output.to_file(fuel, "fuel_%d.data", i);
+	output.to_file(wind, "wind_%d.data", i);
     }
+}
 
     // double forcing(point_type x, double /*t*/) const {
     //     return 0;
